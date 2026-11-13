@@ -26,22 +26,22 @@ public class MainActivity extends Activity {
  GradientDrawable bg(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));d.setStroke(dp(1),Color.rgb(134,239,172));return d;}
  TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(dark);t.setPadding(dp(12),dp(12),dp(12),dp(12));return t;}
  void button(LinearLayout parent,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setOnClickListener(v->r.run());parent.addView(b);}
+ void colored(LinearLayout parent,String label,int color,Runnable action){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(12);b.setTextColor(Color.rgb(31,41,55));b.setBackground(bg(color));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(54),1);p.setMargins(dp(3),dp(3),dp(3),dp(3));parent.addView(b,p);b.setOnClickListener(v->action.run());}
+ void pair(String left,String right,int lc,int rc,Runnable la,Runnable ra){LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);root.addView(row);colored(row,left,lc,la);colored(row,right,rc,ra);}
  void heading(LinearLayout parent,String s){TextView t=text(s,21);t.setTypeface(null,Typeface.BOLD);parent.addView(t);}
  @Override public void onCreate(Bundle state){super.onCreate(state);getWindow().setStatusBarColor(Color.rgb(248,250,252));getWindow().setNavigationBarColor(Color.rgb(248,250,252));
  LinearLayout frame=new LinearLayout(this);frame.setOrientation(1);frame.setBackgroundColor(Color.rgb(248,250,252));setContentView(frame);
  ScrollView scroll=new ScrollView(this);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
  root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(42),dp(16),dp(8));scroll.addView(root);
- TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setBackground(bg(green));root.addView(title);
+ TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER);title.setBackground(bg(green));root.addView(title);
  root.addView(text("Soruları ve cevapları ayrı yükleyin. Numaralı sorular aynı numaralı cevaplarla eşleştirilir.",14));
- button(root,"Soruları yükle (TXT)",()->pick(101,"text/plain"));
- button(root,"Cevapları yükle (TXT)",()->pick(102,"text/plain"));
- button(root,"Soruları yükle (Resim)",()->pick(201,"image/*"));
- button(root,"Cevapları yükle (Resim)",()->pick(202,"image/*"));
- button(root,"Eşleşmeyi isimle kaydet",this::savePrompt);
+ pair("Sorular TXT","Sorular Resim",Color.rgb(254,240,138),green,()->pick(101,"text/plain"),()->pick(201,"image/*"));
+ pair("Cevaplar TXT","Cevaplar Resim",Color.rgb(254,240,138),green,()->pick(102,"text/plain"),()->pick(202,"image/*"));
+ LinearLayout saveRow=new LinearLayout(this);root.addView(saveRow);colored(saveRow,"Eşleşmeyi İsimle Kaydet",Color.rgb(186,230,253),this::savePrompt);
  heading(root,"Kayıtlı Eşleşmeler");library=new LinearLayout(this);library.setOrientation(1);root.addView(library);
  heading(root,"Kartlarla Tekrar");button(root,"Tekrar için kart sayısı seç ve başlat",this::choosePractice);
  timerText=text("Çalışma başlatılmadı",16);root.addView(timerText);
- button(root,"Tekrarı durdur",()->{practice=false;if(timer!=null)timer.stop();timerText.setText("Çalışma durduruldu");render();});
+ button(root,"Çalışmayı Bitir",()->{practice=false;if(timer!=null)timer.stop();timerText.setText("Çalışma bitirildi");render();});
  items=new LinearLayout(this);items.setOrientation(1);root.addView(items);
  TextView footer=text("Muhammed Yusuf OLGUN",13);footer.setTextColor(Color.DKGRAY);footer.setGravity(Gravity.CENTER);footer.setPadding(dp(8),dp(10),dp(8),dp(56));frame.addView(footer);
  load();showLibrary();render();
@@ -86,8 +86,8 @@ public class MainActivity extends Activity {
  LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.VERTICAL);line.setBackground(bg(Color.WHITE));
  LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));library.addView(line,lp);
  TextView label=text(name,17);label.setTypeface(null,Typeface.BOLD);line.addView(label);
- button(line,"Seç ve kullan",()->{fromJson(o.optJSONObject("questions"),questions);fromJson(o.optJSONObject("answers"),answers);activeName=name;practice=false;render();Toast.makeText(this,name+" açıldı",Toast.LENGTH_SHORT).show();});
- button(line,"Kaydı sil",()->confirmDelete(index,name));
+ LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);line.addView(actions);colored(actions,"Seç ve Kullan",green,()->{fromJson(o.optJSONObject("questions"),questions);fromJson(o.optJSONObject("answers"),answers);activeName=name;practice=false;render();Toast.makeText(this,name+" açıldı",Toast.LENGTH_SHORT).show();});
+ colored(actions,"Kaydı Sil",Color.rgb(254,202,202),()->confirmDelete(index,name));
  }}
  void confirmDelete(int index,String name){
  new AlertDialog.Builder(this).setTitle("Silme onayı 1/2").setMessage(name+" kaydını silmek istiyor musunuz?")
