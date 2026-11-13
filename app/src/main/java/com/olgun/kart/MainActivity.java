@@ -33,11 +33,11 @@ public class MainActivity extends Activity {
  LinearLayout frame=new LinearLayout(this);frame.setOrientation(1);frame.setBackgroundColor(Color.rgb(248,250,252));setContentView(frame);
  ScrollView scroll=new ScrollView(this);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
  root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(42),dp(16),dp(8));scroll.addView(root);
- TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER);title.setBackground(bg(green));title.setOnClickListener(v->resetHome());root.addView(title);
+ TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER);title.setTextColor(Color.rgb(20,83,45));title.setBackground(bg(green));title.setOnClickListener(v->resetHome());root.addView(title);
  root.addView(text("Soruları ve cevapları ayrı yükleyin. Numaralı sorular aynı numaralı cevaplarla eşleştirilir.",14));
  pair("Sorular TXT","Sorular Resim",Color.rgb(254,240,138),green,()->pick(101,"text/plain"),()->pick(201,"image/*"));
  pair("Cevaplar TXT","Cevaplar Resim",Color.rgb(254,240,138),green,()->pick(102,"text/plain"),()->pick(202,"image/*"));
- LinearLayout saveRow=new LinearLayout(this);root.addView(saveRow);colored(saveRow,"Eşleşmeyi İsimle Kaydet",Color.rgb(186,230,253),this::savePrompt);
+ LinearLayout saveRow=new LinearLayout(this);saveRow.setOrientation(LinearLayout.HORIZONTAL);root.addView(saveRow);colored(saveRow,"Eşleşmeyi İsimle Kaydet",Color.rgb(186,230,253),this::savePrompt);
  heading(root,"Kayıtlı Eşleşmeler");library=new LinearLayout(this);library.setOrientation(1);root.addView(library);
  heading(root,"Kartlarla Tekrar");
  LinearLayout startRow=new LinearLayout(this);root.addView(startRow);
