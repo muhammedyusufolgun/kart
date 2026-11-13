@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.regex.*;
 
 public class MainActivity extends Activity {
- LinearLayout root,items,library; TextView timerText; Chronometer timer;
+ LinearLayout root,items,library; 
  LinkedHashMap<Integer,String> questions=new LinkedHashMap<>(),answers=new LinkedHashMap<>();
  ArrayList<JSONObject> saved=new ArrayList<>(); int green=Color.rgb(220,252,231),dark=Color.rgb(22,101,52);
  int chosenCount=0; boolean practice=false; String activeName="";
@@ -33,19 +33,20 @@ public class MainActivity extends Activity {
  LinearLayout frame=new LinearLayout(this);frame.setOrientation(1);frame.setBackgroundColor(Color.rgb(248,250,252));setContentView(frame);
  ScrollView scroll=new ScrollView(this);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
  root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(42),dp(16),dp(8));scroll.addView(root);
- TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER);title.setBackground(bg(green));root.addView(title);
+ TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER);title.setBackground(bg(green));title.setOnClickListener(v->resetHome());root.addView(title);
  root.addView(text("Soruları ve cevapları ayrı yükleyin. Numaralı sorular aynı numaralı cevaplarla eşleştirilir.",14));
  pair("Sorular TXT","Sorular Resim",Color.rgb(254,240,138),green,()->pick(101,"text/plain"),()->pick(201,"image/*"));
  pair("Cevaplar TXT","Cevaplar Resim",Color.rgb(254,240,138),green,()->pick(102,"text/plain"),()->pick(202,"image/*"));
  LinearLayout saveRow=new LinearLayout(this);root.addView(saveRow);colored(saveRow,"Eşleşmeyi İsimle Kaydet",Color.rgb(186,230,253),this::savePrompt);
  heading(root,"Kayıtlı Eşleşmeler");library=new LinearLayout(this);library.setOrientation(1);root.addView(library);
- heading(root,"Kartlarla Tekrar");button(root,"Tekrar için kart sayısı seç ve başlat",this::choosePractice);
- timerText=text("Çalışma başlatılmadı",16);root.addView(timerText);
- button(root,"Çalışmayı Bitir",()->{practice=false;if(timer!=null)timer.stop();timerText.setText("Çalışma bitirildi");render();});
+ heading(root,"Kartlarla Tekrar");
+ LinearLayout startRow=new LinearLayout(this);root.addView(startRow);
+ colored(startRow,"Kart Sayısı Seç ve Başlat",Color.rgb(147,197,253),this::choosePractice);
  items=new LinearLayout(this);items.setOrientation(1);root.addView(items);
  TextView footer=text("Muhammed Yusuf OLGUN",13);footer.setTextColor(Color.DKGRAY);footer.setGravity(Gravity.CENTER);footer.setPadding(dp(8),dp(10),dp(8),dp(56));frame.addView(footer);
  load();showLibrary();render();
  }
+ void resetHome(){practice=false;chosenCount=0;questions.clear();answers.clear();activeName="";render();showLibrary();Toast.makeText(this,"Başlangıç ekranına dönüldü",Toast.LENGTH_SHORT).show();}
  void pick(int code,String type){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(type);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  LinkedHashMap<Integer,String> parse(String raw){
  LinkedHashMap<Integer,String> map=new LinkedHashMap<>();int current=-1,auto=1;
@@ -98,7 +99,7 @@ public class MainActivity extends Activity {
  void choosePractice(){if(questions.isEmpty()){Toast.makeText(this,"Önce soru yükleyin veya kayıt seçin",Toast.LENGTH_SHORT).show();return;}
  NumberPicker picker=new NumberPicker(this);picker.setMinValue(1);picker.setMaxValue(questions.size());picker.setValue(questions.size());
  new AlertDialog.Builder(this).setTitle("Tekrar edilecek kart sayısı").setView(picker).setNegativeButton("İptal",null)
- .setPositiveButton("Başlat",(d,w)->{chosenCount=picker.getValue();practice=true;if(timer!=null)timer.stop();timer=new Chronometer(this);timer.setBase(SystemClock.elapsedRealtime());timer.setOnChronometerTickListener(c->timerText.setText("Tekrar süresi: "+c.getText()+" • "+chosenCount+" kart"));timer.start();timerText.setText("Tekrar süresi: 00:00");render();}).show();
+ .setPositiveButton("Başlat",(d,w)->{chosenCount=picker.getValue();practice=true;render();}).show();
  }
  void render(){items.removeAllViews();if(questions.isEmpty()){items.addView(text("Henüz soru yüklenmedi.",16));return;}
  if(!activeName.isEmpty())items.addView(text("Seçili kayıt: "+activeName,15));
