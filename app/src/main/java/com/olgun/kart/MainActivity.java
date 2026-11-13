@@ -1,4 +1,5 @@
 package com.olgun.kart;
+
 import android.app.*;
 import android.os.*;
 import android.content.*;
@@ -11,65 +12,101 @@ import android.widget.*;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
-import java.util.*;
+import org.json.*;
 import java.io.*;
+import java.util.*;
 import java.util.regex.*;
 
 public class MainActivity extends Activity {
- LinearLayout root,items;
+ LinearLayout root,items,library; TextView timerText; Chronometer timer;
  LinkedHashMap<Integer,String> questions=new LinkedHashMap<>(),answers=new LinkedHashMap<>();
- int green=Color.rgb(220,252,231),dark=Color.rgb(22,101,52);
- GradientDrawable bg(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(22);d.setStroke(2,Color.rgb(134,239,172));return d;}
- TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(dark);t.setPadding(18,16,18,16);return t;}
- void addBtn(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setOnClickListener(v->r.run());root.addView(b);}
- @Override public void onCreate(Bundle state){super.onCreate(state);getWindow().setStatusBarColor(green);getWindow().setNavigationBarColor(green);
- ScrollView scroll=new ScrollView(this);root=new LinearLayout(this);root.setOrientation(1);root.setPadding(20,20,20,20);root.setBackgroundColor(Color.rgb(248,250,252));scroll.addView(root);setContentView(scroll);
- TextView title=text("Kart",29);title.setTypeface(null,Typeface.BOLD);title.setBackground(bg(green));root.addView(title);
- root.addView(text("Soru ve cevapları TXT veya galeriden resim olarak ayrı ayrı yükleyin. Numaralar eşleştiğinde karta dokunarak cevabı görün.",14));
- addBtn("Soruları yükle (TXT)",()->pick(101,"text/plain"));
- addBtn("Cevapları yükle (TXT)",()->pick(102,"text/plain"));
- addBtn("Soruları yükle (Resim)",()->pick(201,"image/*"));
- addBtn("Cevapları yükle (Resim)",()->pick(202,"image/*"));
+ ArrayList<JSONObject> saved=new ArrayList<>(); int green=Color.rgb(220,252,231),dark=Color.rgb(22,101,52);
+ int chosenCount=0; boolean practice=false; String activeName="";
+ int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+0.5f);}
+ GradientDrawable bg(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));d.setStroke(dp(1),Color.rgb(134,239,172));return d;}
+ TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(dark);t.setPadding(dp(12),dp(12),dp(12),dp(12));return t;}
+ void button(LinearLayout parent,String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setOnClickListener(v->r.run());parent.addView(b);}
+ void heading(LinearLayout parent,String s){TextView t=text(s,21);t.setTypeface(null,Typeface.BOLD);parent.addView(t);}
+ @Override public void onCreate(Bundle state){super.onCreate(state);getWindow().setStatusBarColor(Color.rgb(248,250,252));getWindow().setNavigationBarColor(Color.rgb(248,250,252));
+ LinearLayout frame=new LinearLayout(this);frame.setOrientation(1);frame.setBackgroundColor(Color.rgb(248,250,252));setContentView(frame);
+ ScrollView scroll=new ScrollView(this);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+ root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(42),dp(16),dp(8));scroll.addView(root);
+ TextView title=text("Kart-Eşleşme",27);title.setTypeface(null,Typeface.BOLD);title.setBackground(bg(green));root.addView(title);
+ root.addView(text("Soruları ve cevapları ayrı yükleyin. Numaralı sorular aynı numaralı cevaplarla eşleştirilir.",14));
+ button(root,"Soruları yükle (TXT)",()->pick(101,"text/plain"));
+ button(root,"Cevapları yükle (TXT)",()->pick(102,"text/plain"));
+ button(root,"Soruları yükle (Resim)",()->pick(201,"image/*"));
+ button(root,"Cevapları yükle (Resim)",()->pick(202,"image/*"));
+ button(root,"Eşleşmeyi isimle kaydet",this::savePrompt);
+ heading(root,"Kayıtlı Eşleşmeler");library=new LinearLayout(this);library.setOrientation(1);root.addView(library);
+ heading(root,"Kartlarla Tekrar");button(root,"Tekrar için kart sayısı seç ve başlat",this::choosePractice);
+ timerText=text("Çalışma başlatılmadı",16);root.addView(timerText);
+ button(root,"Tekrarı durdur",()->{practice=false;if(timer!=null)timer.stop();timerText.setText("Çalışma durduruldu");render();});
  items=new LinearLayout(this);items.setOrientation(1);root.addView(items);
- android.content.SharedPreferences p=getSharedPreferences("kart",0);
- parseSaved(p.getString("q",""),questions);parseSaved(p.getString("a",""),answers);render();
+ TextView footer=text("Muhammed Yusuf OLGUN",13);footer.setTextColor(Color.DKGRAY);footer.setGravity(Gravity.CENTER);footer.setPadding(dp(8),dp(10),dp(8),dp(56));frame.addView(footer);
+ load();showLibrary();render();
  }
  void pick(int code,String type){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(type);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
- void parseSaved(String s,LinkedHashMap<Integer,String> target){target.clear();for(String row:s.split("\\n")){int split=row.indexOf('|');if(split>0)try{target.put(Integer.parseInt(row.substring(0,split)),row.substring(split+1));}catch(Exception ignored){}}}
- String serialize(LinkedHashMap<Integer,String> map){StringBuilder b=new StringBuilder();for(Map.Entry<Integer,String> e:map.entrySet())b.append(e.getKey()).append('|').append(e.getValue().replace("\n"," ")).append("\n");return b.toString();}
- void save(){getSharedPreferences("kart",0).edit().putString("q",serialize(questions)).putString("a",serialize(answers)).apply();}
- // Numbered entries are matched by their explicit number. Unnumbered text is kept in order.
- LinkedHashMap<Integer,String> parse(String raw){LinkedHashMap<Integer,String> map=new LinkedHashMap<>();int current=-1;int auto=1;
- Pattern numbered=Pattern.compile("^\\s*(?:Soru|Cevap|Question|Answer)?\\s*(\\d{1,4})\\s*[.)\\-:]\\s*(.*)$",Pattern.CASE_INSENSITIVE);
- for(String line:raw.split("\\r?\\n")){line=line.trim();if(line.isEmpty())continue;Matcher m=numbered.matcher(line);
+ LinkedHashMap<Integer,String> parse(String raw){
+ LinkedHashMap<Integer,String> map=new LinkedHashMap<>();int current=-1,auto=1;
+ Pattern p=Pattern.compile("^\\s*(?:(?:Soru|Cevap|Question|Answer)\\s*)?(\\d{1,4})\\s*[.)\\-:]\\s*(.*)$",Pattern.CASE_INSENSITIVE);
+ for(String line:raw.split("\\r?\\n")){line=line.trim();if(line.isEmpty())continue;Matcher m=p.matcher(line);
  if(m.matches()){current=Integer.parseInt(m.group(1));map.put(current,m.group(2).trim());auto=Math.max(auto,current+1);}
- else if(current!=-1){map.put(current,map.get(current)+" "+line);}
+ else if(current!=-1)map.put(current,map.get(current)+" "+line);
  else{while(map.containsKey(auto))auto++;map.put(auto++,line);}
- }return map;}
- void ingest(String raw,boolean isQuestion){LinkedHashMap<Integer,String> parsed=parse(raw);if(parsed.isEmpty()){Toast.makeText(this,"Okunabilir içerik bulunamadı",Toast.LENGTH_LONG).show();return;}
- if(isQuestion){questions.clear();questions.putAll(parsed);}else{answers.clear();answers.putAll(parsed);}save();render();
- Toast.makeText(this,parsed.size()+" kayıt yüklendi",Toast.LENGTH_SHORT).show();}
- @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null)return;
- Uri uri=data.getData();if(uri==null)return;boolean isQuestion=req==101||req==201;
+ }return map;
+ }
+ JSONObject mapJson(LinkedHashMap<Integer,String> map)throws JSONException{JSONObject o=new JSONObject();for(Map.Entry<Integer,String> e:map.entrySet())o.put(String.valueOf(e.getKey()),e.getValue());return o;}
+ void fromJson(JSONObject o,LinkedHashMap<Integer,String> map){map.clear();if(o==null)return;ArrayList<Integer> keys=new ArrayList<>();Iterator<String> it=o.keys();while(it.hasNext())try{keys.add(Integer.parseInt(it.next()));}catch(Exception ignored){}Collections.sort(keys);for(int n:keys)map.put(n,o.optString(String.valueOf(n)));}
+ void persist(){JSONArray a=new JSONArray();for(JSONObject o:saved)a.put(o);getSharedPreferences("kart",0).edit().putString("saved",a.toString()).apply();}
+ void load(){try{JSONArray a=new JSONArray(getSharedPreferences("kart",0).getString("saved","[]"));for(int i=0;i<a.length();i++)saved.add(a.getJSONObject(i));}catch(Exception ignored){}}
+ void ingest(String raw,boolean isQuestion){LinkedHashMap<Integer,String> m=parse(raw);if(m.isEmpty()){Toast.makeText(this,"Okunabilir içerik bulunamadı",Toast.LENGTH_LONG).show();return;}
+ if(isQuestion){questions.clear();questions.putAll(m);}else{answers.clear();answers.putAll(m);}practice=false;render();
+ Toast.makeText(this,m.size()+" kayıt okundu",Toast.LENGTH_SHORT).show();}
+ @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null||data.getData()==null)return;
+ Uri uri=data.getData();boolean isQuestion=req==101||req==201;
  if(req==201||req==202){try{
  InputImage img=InputImage.fromFilePath(this,uri);
- com.google.mlkit.vision.text.TextRecognizer recognizer=TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
- recognizer.process(img).addOnSuccessListener(result->{ingest(result.getText(),isQuestion);recognizer.close();})
- .addOnFailureListener(e->{Toast.makeText(this,"Resim okunamadı: "+e.getMessage(),Toast.LENGTH_LONG).show();recognizer.close();});
- }catch(Exception e){Toast.makeText(this,"Görsel açılamadı: "+e.getMessage(),Toast.LENGTH_LONG).show();}return;}
+ com.google.mlkit.vision.text.TextRecognizer rec=TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+ rec.process(img).addOnSuccessListener(result->{ingest(result.getText(),isQuestion);rec.close();})
+ .addOnFailureListener(e->{Toast.makeText(this,"Görsel okunamadı: "+e.getMessage(),Toast.LENGTH_LONG).show();rec.close();});
+ }catch(Exception e){Toast.makeText(this,"Görsel açılamadı",Toast.LENGTH_LONG).show();}return;}
  try(BufferedReader br=new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri)))){
  StringBuilder sb=new StringBuilder();String line;while((line=br.readLine())!=null)sb.append(line).append("\n");ingest(sb.toString(),isQuestion);
- }catch(Exception e){Toast.makeText(this,"Dosya okunamadı: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+ }catch(Exception e){Toast.makeText(this,"Dosya okunamadı",Toast.LENGTH_LONG).show();}
+ }
+ void savePrompt(){if(questions.isEmpty()){Toast.makeText(this,"Önce soruları yükleyin",Toast.LENGTH_SHORT).show();return;}
+ EditText input=new EditText(this);input.setSingleLine(true);input.setHint("Örnek: Tarih 1. Ünite");
+ new AlertDialog.Builder(this).setTitle("Eşleşmeye isim ver").setView(input).setNegativeButton("İptal",null)
+ .setPositiveButton("Kaydet",(d,w)->{String name=input.getText().toString().trim();if(name.isEmpty()){Toast.makeText(this,"İsim boş olamaz",Toast.LENGTH_SHORT).show();return;}
+ try{JSONObject record=new JSONObject();record.put("name",name);record.put("questions",mapJson(questions));record.put("answers",mapJson(answers));record.put("created",System.currentTimeMillis());saved.add(record);activeName=name;persist();showLibrary();}catch(Exception ignored){}}).show();
+ }
+ void showLibrary(){library.removeAllViews();if(saved.isEmpty()){library.addView(text("Henüz kayıtlı eşleşme yok.",14));return;}
+ for(int i=0;i<saved.size();i++){final int index=i;JSONObject o=saved.get(i);String name=o.optString("name","İsimsiz");
+ LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.VERTICAL);line.setBackground(bg(Color.WHITE));
+ LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));library.addView(line,lp);
+ TextView label=text(name,17);label.setTypeface(null,Typeface.BOLD);line.addView(label);
+ button(line,"Seç ve kullan",()->{fromJson(o.optJSONObject("questions"),questions);fromJson(o.optJSONObject("answers"),answers);activeName=name;practice=false;render();Toast.makeText(this,name+" açıldı",Toast.LENGTH_SHORT).show();});
+ button(line,"Kaydı sil",()->confirmDelete(index,name));
+ }}
+ void confirmDelete(int index,String name){
+ new AlertDialog.Builder(this).setTitle("Silme onayı 1/2").setMessage(name+" kaydını silmek istiyor musunuz?")
+ .setNegativeButton("Vazgeç",null).setPositiveButton("Devam", (d,w)->
+ new AlertDialog.Builder(this).setTitle("Silme onayı 2/2").setMessage("Bu işlem geri alınamaz. '"+name+"' kalıcı silinsin mi?")
+ .setNegativeButton("Hayır",null).setPositiveButton("Evet, sil",(d2,w2)->{if(index>=0&&index<saved.size()){saved.remove(index);persist();showLibrary();}}).show()).show();
+ }
+ void choosePractice(){if(questions.isEmpty()){Toast.makeText(this,"Önce soru yükleyin veya kayıt seçin",Toast.LENGTH_SHORT).show();return;}
+ NumberPicker picker=new NumberPicker(this);picker.setMinValue(1);picker.setMaxValue(questions.size());picker.setValue(questions.size());
+ new AlertDialog.Builder(this).setTitle("Tekrar edilecek kart sayısı").setView(picker).setNegativeButton("İptal",null)
+ .setPositiveButton("Başlat",(d,w)->{chosenCount=picker.getValue();practice=true;if(timer!=null)timer.stop();timer=new Chronometer(this);timer.setBase(SystemClock.elapsedRealtime());timer.setOnChronometerTickListener(c->timerText.setText("Tekrar süresi: "+c.getText()+" • "+chosenCount+" kart"));timer.start();timerText.setText("Tekrar süresi: 00:00");render();}).show();
  }
  void render(){items.removeAllViews();if(questions.isEmpty()){items.addView(text("Henüz soru yüklenmedi.",16));return;}
- for(Map.Entry<Integer,String> entry:questions.entrySet()){
- int number=entry.getKey();LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(8,8,8,8);card.setBackground(bg(green));
- LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,8,0,12);items.addView(card,lp);
- TextView q=text(number+". "+entry.getValue(),18);q.setTypeface(null,Typeface.BOLD);card.addView(q);
- String answer=answers.get(number);
- TextView a=text(answer!=null&&!answer.isEmpty()?answer:"Bu numaraya ait cevap bulunamadı.",16);
- a.setBackground(bg(Color.WHITE));a.setVisibility(View.GONE);card.addView(a);
- card.setOnClickListener(v->a.setVisibility(a.getVisibility()==View.GONE?View.VISIBLE:View.GONE));
- }
- }
+ if(!activeName.isEmpty())items.addView(text("Seçili kayıt: "+activeName,15));
+ int shown=0;for(Map.Entry<Integer,String> e:questions.entrySet()){if(practice&&shown>=chosenCount)break;shown++;int n=e.getKey();
+ LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setGravity(Gravity.CENTER);card.setPadding(dp(12),dp(12),dp(12),dp(12));card.setMinimumHeight(getResources().getDisplayMetrics().widthPixels-dp(40));card.setBackground(bg(green));
+ LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(8),0,dp(12));items.addView(card,lp);
+ TextView q=text(n+". "+e.getValue(),20);q.setTypeface(null,Typeface.BOLD);q.setGravity(Gravity.CENTER);card.addView(q);
+ String a=answers.get(n);TextView answer=text(a==null||a.isEmpty()?"Bu numaraya ait cevap bulunamadı":a,18);answer.setGravity(Gravity.CENTER);answer.setBackground(bg(Color.WHITE));answer.setVisibility(View.GONE);card.addView(answer);
+ card.setOnClickListener(v->answer.setVisibility(answer.getVisibility()==View.GONE?View.VISIBLE:View.GONE));
+ }}
 }
