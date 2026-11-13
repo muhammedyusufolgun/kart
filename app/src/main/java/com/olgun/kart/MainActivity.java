@@ -37,8 +37,8 @@ public class MainActivity extends Activity {
  root.addView(text("Soruları ve cevapları ayrı yükleyin. Numaralı sorular aynı numaralı cevaplarla eşleştirilir.",14));
  LinearLayout importRow=new LinearLayout(this);importRow.setOrientation(LinearLayout.HORIZONTAL);importRow.setWeightSum(4f);root.addView(importRow);
  colored(importRow,"Soru\nTXT",Color.rgb(254,240,138),()->pick(101,"text/plain"));
- colored(importRow,"Soru\nResim",green,()->pick(201,"image/*"));
  colored(importRow,"Cevap\nTXT",Color.rgb(254,240,138),()->pick(102,"text/plain"));
+ colored(importRow,"Soru\nResim",green,()->pick(201,"image/*"));
  colored(importRow,"Cevap\nResim",green,()->pick(202,"image/*"));
  LinearLayout saveRow=new LinearLayout(this);saveRow.setOrientation(LinearLayout.HORIZONTAL);root.addView(saveRow);colored(saveRow,"Eşleşmeyi İsimle Kaydet",Color.rgb(186,230,253),this::savePrompt);
  heading(root,"Kayıtlı Eşleşmeler");library=new LinearLayout(this);library.setOrientation(1);root.addView(library);
