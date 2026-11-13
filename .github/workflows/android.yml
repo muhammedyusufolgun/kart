@@ -1,4 +1,4 @@
-name: Kart APK
+name: Kart-Eslesme APK
 on:
   push:
     branches: [main]
@@ -21,7 +21,9 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: gradle :app:assembleDebug --no-daemon
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk Kart-Eslesme.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Kart-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Kart-Eslesme-apk
+          path: Kart-Eslesme.apk
