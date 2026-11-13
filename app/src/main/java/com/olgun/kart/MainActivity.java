@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
  LinearLayout root,items,library; 
  LinkedHashMap<Integer,String> questions=new LinkedHashMap<>(),answers=new LinkedHashMap<>();
  ArrayList<JSONObject> saved=new ArrayList<>(); int green=Color.rgb(220,252,231),dark=Color.rgb(22,101,52);
- int chosenCount=0; boolean practice=false; String activeName="";
+ int chosenCount=0; boolean practice=false; String activeName=""; int selectedRecord=-1;
  int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+0.5f);}
  GradientDrawable bg(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));d.setStroke(dp(1),Color.rgb(134,239,172));return d;}
  TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(dark);t.setPadding(dp(12),dp(12),dp(12),dp(12));return t;}
@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
  TextView footer=text("Muhammed Yusuf OLGUN",13);footer.setTextColor(Color.DKGRAY);footer.setGravity(Gravity.CENTER);footer.setPadding(dp(8),dp(10),dp(8),dp(56));frame.addView(footer);
  load();showLibrary();render();
  }
- void resetHome(){practice=false;chosenCount=0;questions.clear();answers.clear();activeName="";render();showLibrary();Toast.makeText(this,"Başlangıç ekranına dönüldü",Toast.LENGTH_SHORT).show();}
+ void resetHome(){practice=false;chosenCount=0;questions.clear();answers.clear();activeName="";selectedRecord=-1;render();showLibrary();Toast.makeText(this,"Başlangıç ekranına dönüldü",Toast.LENGTH_SHORT).show();}
  void pick(int code,String type){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(type);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  LinkedHashMap<Integer,String> parse(String raw){
  LinkedHashMap<Integer,String> map=new LinkedHashMap<>();int current=-1,auto=1;
@@ -80,21 +80,40 @@ public class MainActivity extends Activity {
  EditText input=new EditText(this);input.setSingleLine(true);input.setHint("Örnek: Tarih 1. Ünite");
  new AlertDialog.Builder(this).setTitle("Eşleşmeye isim ver").setView(input).setNegativeButton("İptal",null)
  .setPositiveButton("Kaydet",(d,w)->{String name=input.getText().toString().trim();if(name.isEmpty()){Toast.makeText(this,"İsim boş olamaz",Toast.LENGTH_SHORT).show();return;}
- try{JSONObject record=new JSONObject();record.put("name",name);record.put("questions",mapJson(questions));record.put("answers",mapJson(answers));record.put("created",System.currentTimeMillis());saved.add(record);activeName=name;persist();showLibrary();}catch(Exception ignored){}}).show();
+ try{JSONObject record=new JSONObject();record.put("name",name);record.put("questions",mapJson(questions));record.put("answers",mapJson(answers));record.put("created",System.currentTimeMillis());saved.add(record);activeName=name;selectedRecord=saved.size()-1;persist();showLibrary();}catch(Exception ignored){}}).show();
  }
- void showLibrary(){library.removeAllViews();if(saved.isEmpty()){library.addView(text("Henüz kayıtlı eşleşme yok.",14));return;}
- for(int i=0;i<saved.size();i++){final int index=i;JSONObject o=saved.get(i);String name=o.optString("name","İsimsiz");
- LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.VERTICAL);line.setBackground(bg(Color.WHITE));
- LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));library.addView(line,lp);
- TextView label=text(name,17);label.setTypeface(null,Typeface.BOLD);line.addView(label);
- LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);line.addView(actions);colored(actions,"Seç ve Kullan",green,()->{fromJson(o.optJSONObject("questions"),questions);fromJson(o.optJSONObject("answers"),answers);activeName=name;practice=false;render();Toast.makeText(this,name+" açıldı",Toast.LENGTH_SHORT).show();});
- colored(actions,"Kaydı Sil",Color.rgb(254,202,202),()->confirmDelete(index,name));
- }}
+ void showLibrary(){
+ library.removeAllViews();
+ if(saved.isEmpty()){selectedRecord=-1;library.addView(text("Henüz kayıtlı eşleşme yok.",14));return;}
+ if(selectedRecord>=saved.size())selectedRecord=-1;
+ RadioGroup group=new RadioGroup(this);group.setOrientation(LinearLayout.VERTICAL);library.addView(group);
+ for(int i=0;i<saved.size();i++){
+  JSONObject o=saved.get(i);String name=o.optString("name","İsimsiz");
+  JSONObject q=o.optJSONObject("questions");int count=q==null?0:q.length();
+  RadioButton item=new RadioButton(this);item.setId(20000+i);
+  item.setText(name+" ("+count+" kart)");item.setTextSize(17);item.setTextColor(dark);
+  item.setPadding(dp(10),dp(10),dp(10),dp(10));item.setBackground(bg(Color.WHITE));
+  RadioGroup.LayoutParams lp=new RadioGroup.LayoutParams(-1,-2);lp.setMargins(0,dp(3),0,dp(3));group.addView(item,lp);
+  if(i==selectedRecord)item.setChecked(true);
+ }
+ group.setOnCheckedChangeListener((g,id)->selectedRecord=id-20000);
+ LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);library.addView(actions);
+ colored(actions,"Seç ve Kullan",green,()->{
+  if(selectedRecord<0||selectedRecord>=saved.size()){Toast.makeText(this,"Önce listeden bir eşleşme seçin",Toast.LENGTH_SHORT).show();return;}
+  JSONObject o=saved.get(selectedRecord);String name=o.optString("name","İsimsiz");
+  fromJson(o.optJSONObject("questions"),questions);fromJson(o.optJSONObject("answers"),answers);
+  activeName=name;practice=false;render();Toast.makeText(this,name+" açıldı",Toast.LENGTH_SHORT).show();
+ });
+ colored(actions,"Kaydı Sil",Color.rgb(254,202,202),()->{
+  if(selectedRecord<0||selectedRecord>=saved.size()){Toast.makeText(this,"Önce silinecek kaydı seçin",Toast.LENGTH_SHORT).show();return;}
+  confirmDelete(selectedRecord,saved.get(selectedRecord).optString("name","İsimsiz"));
+ });
+}
  void confirmDelete(int index,String name){
  new AlertDialog.Builder(this).setTitle("Silme onayı 1/2").setMessage(name+" kaydını silmek istiyor musunuz?")
  .setNegativeButton("Vazgeç",null).setPositiveButton("Devam", (d,w)->
  new AlertDialog.Builder(this).setTitle("Silme onayı 2/2").setMessage("Bu işlem geri alınamaz. '"+name+"' kalıcı silinsin mi?")
- .setNegativeButton("Hayır",null).setPositiveButton("Evet, sil",(d2,w2)->{if(index>=0&&index<saved.size()){saved.remove(index);persist();showLibrary();}}).show()).show();
+ .setNegativeButton("Hayır",null).setPositiveButton("Evet, sil",(d2,w2)->{if(index>=0&&index<saved.size()){saved.remove(index);selectedRecord=-1;persist();showLibrary();}}).show()).show();
  }
  void choosePractice(){if(questions.isEmpty()){Toast.makeText(this,"Önce soru yükleyin veya kayıt seçin",Toast.LENGTH_SHORT).show();return;}
  NumberPicker picker=new NumberPicker(this);picker.setMinValue(1);picker.setMaxValue(questions.size());picker.setValue(questions.size());
